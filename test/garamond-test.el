@@ -604,6 +604,72 @@ afterwards, and BODY runs with the file's own local variables applied."
     (should (equal '("a." "c." "d.") (garamond--abbreviations-in-force)))))
 
 
+;;; The pre-release pass
+
+(ert-deftest garamond-test-docstrings-have-no-broken-escapes ()
+  "A lone \\= in a docstring reads as =, so \\='s renders as ='s.
+Every garamond docstring, function or variable, is checked for the residue."
+  (let (bad)
+    (mapatoms
+     (lambda (sym)
+       (when (string-prefix-p "garamond" (symbol-name sym))
+         (dolist (doc (list (and (fboundp sym) (ignore-errors (documentation sym)))
+                            (documentation-property sym 'variable-documentation)))
+           (when (and (stringp doc) (string-match-p "='\\|=\"" doc))
+             (push sym bad))))))
+    (should-not bad)))
+
+(ert-deftest garamond-test-empty-abbreviation-is-ignored ()
+  "An empty string would match everywhere and silence the typing."
+  (let ((garamond-extra-abbreviations '("")))
+    (should (equal (garamond-test--type "One. Two. ") "One.  Two.  ")))
+  (let ((garamond-extra-abbreviations '(nil "" 42)))
+    (should (equal (garamond-test--type "One. Two. ") "One.  Two.  "))))
+
+(ert-deftest garamond-test-sentence-initial-capital-abbreviations ()
+  "e.g. at the start of a sentence is E.g., and still an abbreviation."
+  (should (equal (garamond-test--type "E.g. this. ") "E.g. this.  "))
+  (should (equal (garamond-test--type "Cf. that. ") "Cf. that.  "))
+  ;; A capitalised entry gets no lower-case twin: no. ends a sentence.
+  (should (equal (garamond-test--type "I said no. Then ") "I said no.  Then "))
+  (should (equal (garamond-test--type "Ask Dr. Who ") "Ask Dr. Who ")))
+
+(ert-deftest garamond-test-adjust-spacing-accepts-reversed-bounds ()
+  (with-temp-buffer
+    (text-mode)
+    (insert "One. Two. Three.")
+    (garamond-adjust-spacing (point-max) (point-min) 2)
+    (should (equal "One.  Two.  Three." (buffer-string)))))
+
+(ert-deftest garamond-test-scan-sees-past-a-narrowing ()
+  "Narrowed to the inside of a block, the scan still knows it is in one."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Prose.\n#+begin_src sh\necho one\necho two\n#+end_src\n")
+    (goto-char (point-min)) (search-forward "echo two")
+    (narrow-to-region (line-beginning-position) (line-end-position))
+    (should (garamond--in-verbatim-block-p))))
+
+(ert-deftest garamond-test-rewrite-src-inside-quote-block ()
+  "A src block nested in a quote block is code; the quote's prose is prose."
+  (should (equal (garamond-test--rewrite
+                  "#+begin_quote\nQuoted. Words.\n#+begin_src sh\na. b\n#+end_src\n#+end_quote\n"
+                  2 #'org-mode)
+                 "#+begin_quote\nQuoted.  Words.\n#+begin_src sh\na. b\n#+end_src\n#+end_quote\n")))
+
+(ert-deftest garamond-test-guard-list-can-be-emptied ()
+  (let ((garamond-unsuitable-modes nil))
+    (with-temp-buffer
+      (dired-mode)
+      (setq buffer-read-only nil)
+      (garamond-mode 1)
+      (should garamond-mode))))
+
+(ert-deftest garamond-test-sentence-end-at-buffer-start ()
+  (should (equal (garamond-test--type "A. ") "A.  "))
+  (should (equal (garamond-test--type ". ") ". ")))
+
+
 ;;; Declaring, without rewriting
 
 (ert-deftest garamond-test-set-spacing-touches-no-text ()

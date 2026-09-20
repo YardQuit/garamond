@@ -45,8 +45,10 @@
 ;; `garamond-adjust-spacing' write `sentence-end-double-space' into the
 ;; file as a local variable, and `garamond-follow-declarations-mode'
 ;; reads it back when the file is next opened, switching the typing on to
-;; match.  There is no list of modes, and no buffer is altered because of
-;; what mode it happens to be in.
+;; match.  There is no list of prose modes, and no buffer is altered
+;; because of what mode it happens to be in; the one list of modes here,
+;; `garamond-unsuitable-modes', names the buffers nobody types in, where
+;; the typing mode refuses to run at all.
 ;;
 ;; What is consulted is the declaration, not the value.  Emacs ships with
 ;; `sentence-end-double-space' set to t, so every buffer in every Emacs
@@ -85,13 +87,16 @@
 ;;   (garamond-follow-declarations-mode 1)
 ;;
 ;; It does not run itself on load; a library that switches itself on is a
-;; library you cannot load in order to read it.  The two globals it does
-;; have -- `garamond-abbreviations' and `garamond-double-space-on-typing'
-;; -- say nothing about any document's spacing.
+;; library you cannot load in order to read it.  The globals it does have
+;; -- the abbreviation lists, `garamond-double-space-on-typing',
+;; `garamond-lighter', `garamond-persist', `garamond-unsuitable-modes' --
+;; say nothing about any document's spacing.
+;;
+;; When the indicator is not where you expect it, `garamond-doctor' says
+;; what garamond is doing in the buffer and why.
 
 ;;; Code:
 
-(require 'cl-lib)
 (require 'seq)
 
 (defgroup garamond nil
@@ -114,7 +119,12 @@ Consulted by `garamond-mode' while typing.  The wholesale rewrite done by
 These are the defaults.  To add your own without retyping them, or to
 drop some, use `garamond-extra-abbreviations' and
 `garamond-removed-abbreviations'; all three are read afresh, so a `setq'
-in a configuration file takes effect at the next keystroke."
+in a configuration file takes effect at the next keystroke.
+
+Case matters, with one allowance: an entry that begins with a lower-case
+letter also counts capitalised, as it is at the start of a sentence --
+\"e.g.\" covers \"E.g.\".  An entry given capitalised, \"No.\" or \"Dr.\",
+is matched only so, since \"no.\" and \"dr.\" do end sentences."
   :type '(repeat string)
   :group 'garamond)
 
@@ -134,10 +144,28 @@ saints end sentences more often than they abbreviate."
   :group 'garamond)
 
 (defun garamond--abbreviations-in-force ()
-  "Return the abbreviations that count: the defaults, less removed, plus extra."
-  (append (seq-remove (lambda (abbrev) (member abbrev garamond-removed-abbreviations))
-                      garamond-abbreviations)
-          garamond-extra-abbreviations))
+  "Return the abbreviations that count: the defaults, less removed, plus extra.
+Anything that is not a non-empty string is dropped on the way: an empty
+string would match everywhere and silence the typing altogether."
+  (seq-filter (lambda (abbrev) (and (stringp abbrev) (not (string= abbrev ""))))
+              (append (seq-remove (lambda (abbrev)
+                                    (member abbrev garamond-removed-abbreviations))
+                                  garamond-abbreviations)
+                      garamond-extra-abbreviations)))
+
+(defun garamond--with-sentence-initial-capitals (abbreviations)
+  "Return ABBREVIATIONS with a capitalised twin for each lower-case one.
+\"e.g.\" opens a sentence as \"E.g.\", and is no less an abbreviation for
+it; \"No.\" and \"Dr.\" are given capitalised and get no lower-case twin,
+since \"no.\" and \"dr.\" do end sentences."
+  (append abbreviations
+          (delq nil
+                (mapcar (lambda (abbrev)
+                          (let ((first (aref abbrev 0)))
+                            (and (/= first (upcase first))
+                                 (concat (string (upcase first))
+                                         (substring abbrev 1)))))
+                        abbreviations))))
 
 (defvar garamond--abbreviation-regexp nil
   "One regexp matching any abbreviation in force, built on demand.
@@ -173,13 +201,15 @@ must not be part of a word.")
               (and in-force
                    ;; At the start of the line, or after a non-word
                    ;; character: "e.g." is an abbreviation, "Xe.g." is not.
-                   (concat "\\(?:^\\|\\W\\)" (regexp-opt in-force)))))))
+                   (concat "\\(?:^\\|\\W\\)"
+                           (regexp-opt
+                            (garamond--with-sentence-initial-capitals in-force))))))))
   garamond--abbreviation-regexp)
 
 (defun garamond--abbreviation-p (pos)
   "Return non-nil when the text ending at POS is an abbreviation in force.
-Case matters, as it does in the lists: an abbreviation given capitalised
-is not matched in lower case."
+Case matters, as `garamond-abbreviations' explains: a lower-case entry
+also counts capitalised, a capitalised one only as given."
   (let ((regexp (garamond--abbreviation-regexp)))
     (and regexp
          (save-excursion
@@ -288,22 +318,23 @@ REGEXP finds delimiters; STEP is called at each with the match data set
 and the block open so far, and returns the block open after it.  The
 scan resumes from `garamond--block-scan' when that lies at or above the
 current line, and from the top otherwise."
-  (let* ((bol (line-beginning-position))
-         (scan garamond--block-scan)
-         (resume (and scan (<= (car scan) bol)))
-         (open (and resume (cdr scan))))
-    (save-excursion
-      (save-restriction
-        ;; Blocks are a property of the whole buffer, not of the part in
-        ;; view; a narrowed scan would cache answers a widened one denies.
-        (widen)
+  (save-excursion
+    (save-restriction
+      ;; Blocks are a property of the whole buffer, not of the part in
+      ;; view; a narrowed scan would cache answers a widened one denies,
+      ;; and a line beginning taken inside the narrowing might not be one.
+      (widen)
+      (let* ((bol (line-beginning-position))
+             (scan garamond--block-scan)
+             (resume (and scan (<= (car scan) bol)))
+             (open (and resume (cdr scan))))
         (save-match-data
           (goto-char (if resume (car scan) (point-min)))
           (let ((case-fold-search t))
             (while (re-search-forward regexp bol t)
-              (setq open (funcall step open)))))))
-    (setq garamond--block-scan (cons bol open))
-    open))
+              (setq open (funcall step open)))))
+        (setq garamond--block-scan (cons bol open))
+        open))))
 
 (defun garamond--in-verbatim-block-p ()
   "Non-nil when point is inside a code block, whether or not it is closed yet.
@@ -347,7 +378,7 @@ and costs well under a microsecond."
   "Return the stretches of this Org buffer that are laid out rather than written.
 A list of (START . END), sorted by START, one for each construct of
 `garamond--org-verbatim-types' in the whole buffer, from a single parse.
-END is the construct\='s own end, trailing whitespace included, which is
+END is the construct\\='s own end, trailing whitespace included, which is
 also where `org-element-context' stops calling a position part of it.
 
 One parse of a megabyte takes a sixth of a second; asking
@@ -380,7 +411,7 @@ before the position it is given."
 (defun garamond--verbatim-predicate ()
   "Return the function `garamond-adjust-spacing' asks at each sentence break.
 For a pass over a whole buffer or region that is `garamond--verbatim-p'
-except in Org, where the parser\='s part of the question is answered from
+except in Org, where the parser\\='s part of the question is answered from
 one parse of the buffer rather than a call per break.  The block scan and
 the line-local checks stay: the parse reads an unfinished block as a
 paragraph and cannot see a link still being typed."
@@ -397,7 +428,7 @@ paragraph and cannot see a link still being typed."
 Blocks are settled first by the incremental scan, which is cheap and
 sees unfinished ones.  Then Org is asked `org-element-context' about
 what surrounds point, compared with `garamond--org-verbatim-types': the
-single call covers tables, links and inline code alike, through Org\='s
+single call covers tables, links and inline code alike, through Org\\='s
 element cache.  It costs a tenth of a millisecond or so in a paragraph
 of ordinary length, and grows with the paragraph, which Org reads from
 its start each time; a whole pass uses `garamond--verbatim-predicate'
@@ -414,7 +445,7 @@ come the line-local checks for constructs still being typed."
      (garamond--half-typed-p))))
 
 (defun garamond--parsers-say-verbatim-p ()
-  "Ask the major mode\='s own parser whether point is in laid-out text.
+  "Ask the major mode\\='s own parser whether point is in laid-out text.
 Split out of `garamond--verbatim-p' so that the one part of the question
 answered by other packages can be fenced: an error from `org-element' or
 `markdown-mode' mid-keystroke would otherwise abort `self-insert-command'
@@ -522,7 +553,7 @@ holds what this file -- or a .dir-locals.el above it -- actually said."
     (and (assq 'sentence-end-double-space file-local-variables-alist) t)))
 
 (defun garamond--declared-in-file-p ()
-  "Non-nil when the declaration is in this file\='s own text.
+  "Non-nil when the declaration is in this file\\='s own text.
 `garamond-declared-p' also counts a .dir-locals.el speaking for the
 file, which is right for following it and wrong for updating it: a
 directory-wide choice should not be turned into a block inside one
@@ -546,7 +577,7 @@ the minibuffer, defaulting to what the buffer uses now."
              (or
               ;; Declared in the file itself: update it rather than let
               ;; it lie.  Declared by a .dir-locals.el: ask, as for any
-              ;; other file -- the directory\='s word is not this file\='s.
+              ;; other file -- the directory\\='s word is not this file\\='s.
               (garamond--declared-in-file-p)
               (and garamond-persist
                    (y-or-n-p "Record this spacing in the file? "))))))
@@ -554,11 +585,13 @@ the minibuffer, defaulting to what the buffer uses now."
 (defun garamond--declare (spaces persist)
   "Make this buffer a buffer of SPACES spaces between sentences.
 `sentence-end-double-space' is set buffer-locally, so that the fill and
-sentence commands agree with the text, and `garamond-mode' is switched on,
-so that what you type agrees with it too and the mode line says which
-spacing is in force.  With PERSIST
-the value is written into the file as a local variable; the buffer is
-left modified, not saved.  Returns a description of what was recorded."
+sentence commands agree with the text, and `garamond-mode' is switched
+on, so that what you type agrees with it too and the mode line says which
+spacing is in force -- unless the buffer is one the mode refuses, in
+which case the variable is still set and the report says why the typing
+is not.  With PERSIST the value is written into the file as a local
+variable; the buffer is left modified, not saved.  Returns how the
+command\\='s message should end."
   ;; Anything that can refuse, refuses before anything changes: a
   ;; read-only buffer must not end up declared in memory and not on disk.
   (when (and persist buffer-file-name)
@@ -599,8 +632,9 @@ SPACES is 1 or 2.  Not a character of the buffer is touched: this only
 declares what is already true, which is what you want for a document that
 arrived with its own convention -- `sentence-end-double-space' is set
 buffer-locally so that filling and sentence motion agree with the text,
-and `garamond-mode' is switched on or off so that what you type next
-agrees with it as well.
+and `garamond-mode' is switched on so that what you type next agrees with
+it as well -- dormant at one space, and refused, with the reason given,
+in a buffer nobody types in.
 
 With optional PERSIST, or interactively when the file does not say yet
 and `garamond-persist' allows the question, the value is also written
@@ -640,8 +674,7 @@ the minibuffer, defaulting to what the buffer uses now.
 The buffer is then declared to use that spacing, exactly as
 \\\[garamond-set-spacing] would: `sentence-end-double-space' is set
 buffer-locally -- otherwise the next \\[fill-paragraph] would put the old
-spacing straight back -- and `garamond-mode' is switched on or off to
-match.
+spacing straight back -- and `garamond-mode' is switched on.
 
 Optional PERSIST additionally writes the value into the file as a local
 variable, so the choice survives reopening; the buffer is left modified,
@@ -659,6 +692,8 @@ its local variable never contradicts its text."
     (user-error "Sentence spacing must be 1 or 2, not %s" spaces))
   ;; Refuse before any work is done, not at the first replacement.
   (barf-if-buffer-read-only)
+  (when (> beg end)
+    (setq beg (prog1 end (setq end beg))))
   ;; The mode, and with it the hook that keeps the block scan honest, may
   ;; have been off while this buffer was edited; start the scan over.  It
   ;; then moves forward with the pass, so the whole pass stays linear.
@@ -724,7 +759,7 @@ Set this to nil to place the indicator yourself, or to be rid of it.
 \"1S\", their bracketed forms, or the empty string in a buffer the mode is
 not on in.  Either add the ready-made construct
 
-  (add-to-list \='global-mode-string garamond-mode-line-format t)
+  (add-to-list \\='global-mode-string garamond-mode-line-format t)
 
 or write it into a mode line of your own, which is what a configuration
 that hides minor mode lighters altogether will want:
@@ -784,7 +819,7 @@ garamond-double-space-on-typing")
 
 ;;;###autoload
 (defun garamond-mode-line-string ()
-  "Return this buffer\='s spacing as a string, for a mode line of your own.
+  "Return this buffer\\='s spacing as a string, for a mode line of your own.
 \"2S\" or \"1S\", bracketed while `garamond-double-space-on-typing' is nil,
 and the empty string wherever `garamond-mode' is off -- which reads as
 nobody having said anything about that buffer.  The string carries a
@@ -801,7 +836,7 @@ construct to add to `global-mode-string'."
   "A mode-line construct showing which spacing the current buffer uses.
 For adding the indicator by hand, once `garamond-lighter' is nil:
 
-  (add-to-list \='global-mode-string garamond-mode-line-format t)
+  (add-to-list \\='global-mode-string garamond-mode-line-format t)
 
 It is safe anywhere, buffers garamond has nothing to do with included:
 there it evaluates to the empty string.")
@@ -813,13 +848,13 @@ Evaluated only while the mode is on, `minor-mode-alist' seeing to that."
        (cdr (garamond--mode-line-entry-for-buffer))))
 
 (defcustom garamond-unsuitable-modes
-  '(special-mode dired-mode comint-mode term-mode eshell-mode)
+  '(special-mode dired-mode comint-mode term-mode eshell-mode vterm-mode)
   "Major modes in whose buffers nobody writes prose, derived modes included.
 `garamond-mode' refuses to switch on in them, as it does in any read-only
 buffer and in the minibuffer, whatever asked for it -- a declaration in
 a .dir-locals.el for all modes, or a hand on \\[garamond-mode].  Dired and
 the `special-mode' family are read-only in any case; the shells are here
-because a space typed at a prompt is a command\='s business, not prose.
+because a space typed at a prompt is a command\\='s business, not prose.
 
 This is a guard against the absurd, not a list of where prose is
 written: a `conf-mode' or `prog-mode' buffer is not here, and switching
@@ -831,7 +866,9 @@ the mode on in one by hand is taken at its word."
   "Return why `garamond-mode' cannot run in this buffer, or nil when it can."
   (cond ((minibufferp) "this is the minibuffer")
         (buffer-read-only "the buffer is read-only")
-        ((apply #'derived-mode-p garamond-unsuitable-modes)
+        ;; One mode per call: the several-modes form of `derived-mode-p'
+        ;; is deprecated in Emacs 30 and the list form new there.
+        ((seq-some #'derived-mode-p garamond-unsuitable-modes)
          (format "nobody writes prose in %s" major-mode))))
 
 (defun garamond--maybe-double-space ()
@@ -980,7 +1017,7 @@ does not have one yet."
 (declare-function lm-header "lisp-mnt" (header))
 
 (defun garamond--version ()
-  "Return the version in garamond.el\='s own header, or nil if unreadable.
+  "Return the version in garamond.el\\='s own header, or nil if unreadable.
 Read rather than recorded, so that it cannot drift from the header."
   (require 'lisp-mnt)
   (let* ((loaded (symbol-file 'garamond-mode 'defun))
@@ -997,7 +1034,7 @@ Read rather than recorded, so that it cannot drift from the header."
            (lm-header "version")))))
 
 (defun garamond--mode-line-shows-lighter ()
-  "Say whether this buffer\='s mode line actually displays the indicator.
+  "Say whether this buffer\\='s mode line actually displays the indicator.
 Returns `yes', `no', `none' when the buffer has no mode line at all, or
 `unknown' when there is nothing to show or no window to render against,
 as under --batch, where `format-mode-line' is empty for everything and
@@ -1052,7 +1089,7 @@ again from a real window.")))
 
 ;;;###autoload
 (defun garamond-version ()
-  "Return garamond\='s version, from the header of the file that was loaded.
+  "Return garamond\\='s version, from the header of the file that was loaded.
 Interactively, say it as well."
   (interactive)
   (let ((version (or (garamond--version) "unknown")))

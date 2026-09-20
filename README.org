@@ -258,7 +258,26 @@ means retyping the list:
         garamond-removed-abbreviations '("St." "No."))
 #+end_src
 
-All three are read afresh, so a =setq= takes effect at the next keystroke.  The wholesale rewrite deliberately ignores that
+All three are read afresh, so a =setq= takes effect at the next keystroke.
+Case matters, with one allowance: an entry that begins with a lower-case
+letter also counts capitalised, as it is at the start of a sentence -- =e.g.=
+covers =E.g.= -- while =No.= and =Dr.= are matched only as given, since =no.=
+and =dr.= do end sentences.
+
+*** What it gets wrong, knowingly
+
+- /Initials./  =J. R. R. Tolkien= reads as three sentence ends, and the typing
+  doubles after each; there is no telling =J.= from a sentence that ends in
+  =I=.  Add the initials you use to =garamond-extra-abbreviations= if it
+  bothers you.
+- /An abbreviation that ends a sentence./  After =etc.= the typing holds back,
+  as it must -- so type the second space yourself.  Two spaces typed by hand
+  are left as two.
+- /A very long Org paragraph./  Org reads a paragraph from its start to say
+  what surrounds point, so a space at the end of a paragraph hundreds of
+  lines long with no blank line in it costs milliseconds.  Blank lines
+  between paragraphs, which is how prose is written, keep it at a fifth of
+  a millisecond.  The wholesale rewrite deliberately ignores that
 list, so that its result is uniform.  In =overwrite-mode= it stays out of
 the way altogether: a space typed over a character is meant to replace it,
 not to shift the rest of the line along.  And should a mode's parser signal
@@ -359,9 +378,9 @@ thousand lines of Org take about two seconds, and a single
 thousand-line paragraph, which used to take the square of its length,
 a few hundredths.
 
-* The two globals
+* The globals
 
-Neither says anything about how any document is spaced, which is why they
+None says anything about how any document is spaced, which is why they
 are allowed to be globals.
 
 | =garamond-abbreviations=          | Words whose trailing period is not a full stop |
@@ -383,8 +402,8 @@ filling and sentence motion behave -- while no second space ever appears
 under your hands.  It is read afresh at each keystroke, so a keybinding can
 flip it mid-sentence and the minor mode need not be cycled.
 
-=garamond-persist= is a fourth, and governs only whether the commands
-/offer/ to write a declaration.
+=garamond-persist= governs only whether the commands /offer/ to write a
+declaration.
 
 * When nothing shows
 
