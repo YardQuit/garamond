@@ -98,7 +98,14 @@ Garamond is one file with no dependencies beyond Emacs 29.1.
 =:load-path= on its own would be enough to load garamond: =use-package=
 ends with =(require 'garamond)=, and =require= would find =garamond.el=
 there.  It would also run /interpreted/, and garamond works from
-=post-self-insert-hook=, so that cost is paid on every keystroke.
+=post-self-insert-hook=, so that cost is paid on every keystroke -- though
+honesty about its size is owed: interpreted, a space between words costs
+0.9 µs against 0.3 µs compiled, and a space after a sentence end 5 µs
+against 3 µs.  Nobody can feel either.  Compiling is worth doing for two
+other reasons: the byte-compiler reads the whole file and says what it
+finds wrong, and a =.elc= is what Emacs's native compiler picks up in the
+background when =native-comp-jit-compilation= is on -- a =.el= loaded from
+source never is.
 
 So =:init= picks the file instead of leaving the choice to =require=.
 That is what the =load= call is for.  Emacs prefers =garamond.elc= to
