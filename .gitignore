@@ -20,3 +20,9 @@ dist/
 \#*\#
 .\#*
 *-autoloads.el
+
+# Working files that stay in the project root, and the local work directory
+*.patch
+CLAUDE.md
+release-*.md
+.garamond-local/
