@@ -1,0 +1,341 @@
+#+title: Garamond
+#+subtitle: Sentence spacing the document carries itself
+#+options: toc:nil
+
+Two spaces after a full stop are a typist's convention, and Emacs believes
+in them: =sentence-end-double-space= is what tells =fill-paragraph= and
+=forward-sentence= where one sentence stops and the next begins.  The
+trouble is keeping the text and the variable in agreement, and keeping the
+second space out of everything that is /laid out/ rather than /written/ --
+code, tables, link targets, maths.  That is the whole of this package.
+
+* Nothing here is a global setting
+
+How a document is spaced is a property of /that document/, so garamond
+keeps it in the document rather than in anybody's configuration.  You tell
+a buffer what it uses, garamond writes that into the file, and from then on
+the file says so itself -- on your machine, on a colleague's, in a checkout
+made five years from now.
+
+There is no list of modes in this package.  No buffer is altered because of
+what major mode it happens to be in.
+
+** What is consulted is the declaration, not the value
+
+Worth knowing, because it is the pivot the design turns on: Emacs ships
+with =sentence-end-double-space= set to =t=.  Every buffer in every Emacs
+already "has" double spacing, whether or not anything double-spaced it.  A
+package that read the /value/ would therefore follow that global into files
+which never asked for it.
+
+So garamond reads =file-local-variables-alist= instead, which holds only
+what the file itself said -- or what a =.dir-locals.el= above it said on its
+behalf.  A file that declares nothing is left entirely alone.
+
+* Setup
+
+One line, after putting it on your =load-path=:
+
+#+begin_src emacs-lisp
+  (require 'garamond)
+  (garamond-follow-declarations-mode 1)
+#+end_src
+
+Or with =use-package=:
+
+#+begin_src emacs-lisp
+  (use-package garamond
+    :load-path "~/src/garamond"
+    :config (garamond-follow-declarations-mode 1))
+#+end_src
+
+That mode is the only global thing in the package, and it is not a spacing
+-- it is a willingness to read the ones documents state.  It runs from
+=hack-local-variables-hook=, so it sees a file just after the file's own
+variables have been applied.  A file that declares nothing is left alone, and
+so is a buffer nobody types in -- one that visits no file and cannot be
+edited, such as Dired under a =.dir-locals.el= entry for all modes.  Nothing runs itself on load; a library that
+switches itself on is a library you cannot load in order to read it.
+
+* Three commands
+
+| =garamond-set-spacing=    | Declare what this buffer uses.  No text is touched |
+| =garamond-adjust-spacing= | Declare it, and rewrite the text to match          |
+| =garamond-mode=           | Buffer-local: type one space, get two.  Says =1S= or =2S= |
+
+** =garamond-set-spacing=
+
+For a document that already has the convention you want, and just needs
+Emacs to agree with it: a file that arrived single-spaced, say.  It sets
+=sentence-end-double-space= buffer-locally, switches =garamond-mode= on so
+that the mode line reports the spacing, offers to record the choice in the
+file -- and changes not
+one character of your text.  =C-u 2 M-x garamond-set-spacing= declares
+double spacing outright; with no prefix it asks.
+
+This is also the toggle to reach for in a buffer that has nothing to do
+with prose.  If you want two spaces in a =conf-mode= buffer, say so and you
+have them; garamond has no opinion about where you are allowed to want
+things.
+
+** =garamond-adjust-spacing=
+
+The same, plus the rewrite.  It works on the region, or the whole buffer
+when no region is active.  Every run of spaces after a sentence end becomes
+exactly one or two, so the result does not depend on what was there before,
+while line breaks, indentation, trailing whitespace and the period that
+numbers an ordered list item are all left alone.
+
+Recording in the file is offered for a whole buffer only -- a region says
+nothing about the rest of the file -- and =garamond-persist= set to =nil=
+suppresses the question everywhere.  A file that already declares its
+spacing /in its own text/ is kept accurate without asking, so its local
+variable never contradicts its text; one spoken for by a =.dir-locals.el=
+is asked like any other, since the directory's word is not the file's.
+Both commands refuse a read-only buffer before changing anything when
+asked to record, and say so rather than claim a record when file-local
+variables are disabled.
+
+** =garamond-mode=
+
+The typing.  One space after a sentence end becomes two; a longer run typed
+by hand is trimmed back, so the result does not depend on how many times
+the space bar was pressed.
+
+The mode line says which spacing is in force, and the absence of it says
+that nothing has spoken for this buffer at all:
+
+| =2S=    | Two spaces between sentences; typing one gives two    |
+| =1S=    | One space; the mode is on but dormant                 |
+| =(2S)=  | Bracketed while =garamond-double-space-on-typing= is nil |
+| nothing | The mode is off: nothing has declared this buffer     |
+
+Each carries a tooltip saying the same at more length.  The mode stays on
+for a buffer declared /single/ spaced, where it does nothing but report --
+that is what makes =1S= distinguishable from a buffer nobody has spoken
+for.
+
+*** Where it refuses to run
+
+A typing mode has nothing to do in a buffer nobody types in.
+=garamond-mode= refuses, saying why, in a read-only buffer, in the
+minibuffer, and in the modes listed in =garamond-unsuitable-modes= --
+=special-mode= and its family, Dired, the shells -- whatever asked for it:
+a =.dir-locals.el= entry for all modes, or you by hand.  By hand the
+refusal is an error; from Lisp, a message.  The list is a guard against
+the absurd, not a list of where prose is written: a =conf-mode= or
+=prog-mode= buffer is not on it, and switching the mode on there is taken
+at its word.
+
+Read-only is followed, not just refused: with
+=garamond-follow-declarations-mode= on, a declared file opened read-only
+gets the typing the moment =C-x C-q= makes it writable, and loses it again
+when it is made read-only.
+
+*** Placing the indicator yourself
+
+Set =garamond-lighter= to nil and the mode contributes nothing of its own;
+=garamond-mode-line-string= is then yours to put where you like.  The
+ready-made construct goes on the end of the mode line:
+
+#+begin_src emacs-lisp
+  (setq garamond-lighter nil)
+  (add-to-list 'global-mode-string garamond-mode-line-format t)
+#+end_src
+
+#+begin_example
+  -UUU:**- F1  doc.txt        All L2     (Text) 2S---
+#+end_example
+
+Or write it into a mode line of your own -- which is what a configuration
+that hides minor mode lighters altogether will want:
+
+#+begin_src emacs-lisp
+  (:eval (garamond-mode-line-string))
+#+end_src
+
+What you place is the bare string, without the leading space a minor mode
+lighter is expected to bring, so the spacing around it is yours to decide.
+It is safe anywhere, in buffers garamond has nothing to do with included:
+there it is the empty string.  Leave =garamond-lighter= at =t= and add it
+by hand as well and you will see it twice.
+
+It requires a letter before the punctuation, which rules out list numbering
+and decimals, and it consults =garamond-abbreviations= -- =e.g.=, =Dr.=,
+=etc.= and their kin -- whose trailing period does not end a sentence, even
+inside a closing bracket.  Add your own with =garamond-extra-abbreviations=
+and drop defaults with =garamond-removed-abbreviations=, neither of which
+means retyping the list:
+
+#+begin_src emacs-lisp
+  (setq garamond-extra-abbreviations '("Ph.D." "et al." "Inc.")
+        garamond-removed-abbreviations '("St." "No."))
+#+end_src
+
+All three are read afresh, so a =setq= takes effect at the next keystroke.  The wholesale rewrite deliberately ignores that
+list, so that its result is uniform.  In =overwrite-mode= it stays out of
+the way altogether: a space typed over a character is meant to replace it,
+not to shift the rest of the line along.  And should a mode's parser signal
+an error mid-keystroke, the error is shown and the space left alone; the
+hook never breaks typing.
+
+You rarely turn it on yourself: declaring a buffer does it, either spacing,
+and so does opening a file that declares itself.  Turning it on by hand, in
+any buffer whatever, is taken at its word.
+
+* How a document declares itself
+
+In its own local variables block, which is what the commands write:
+
+#+begin_example
+  # Local Variables:
+  # sentence-end-double-space: t
+  # End:
+#+end_example
+
+Or a whole prose repository at once, in =.dir-locals.el=, with no line in
+anyone's configuration:
+
+#+begin_src emacs-lisp
+  ((org-mode . ((sentence-end-double-space . t))))
+#+end_src
+
+Or, for the typing alone, in a file's first line:
+
+#+begin_example
+  -*- mode: markdown; mode: garamond -*-
+#+end_example
+
+** The cost, stated plainly
+
+A new document you want double-spaced has no declaration yet, so nothing
+happens until you run =garamond-set-spacing= once -- which writes the
+declaration, after which the file carries the fact itself.  One act per
+document, at its birth.  That is the price of keeping the setting out of
+your configuration, and it buys a document that behaves the same way in
+every Emacs that opens it.
+
+* What garamond decides without being asked
+
+One thing, and it is per /position/ rather than per mode: inside a buffer
+that has declared itself double-spaced, a second space still has no
+business in a source block, a table column or a link target.
+
+In Org that is =org-element-context='s verdict -- source and example
+blocks, tables, links, inline code, LaTeX fragments, keywords, drawers,
+timestamps, citations.  Markdown contributes its code blocks, inline code
+and links, LaTeX its maths and verbatim environments, and any buffer its
+=orgtbl-mode= tables.  The typing hook goes further and recognises
+constructs that are only /half typed/ -- an Org link with no closing
+bracket yet, a block with no =#+end_=, an unclosed backtick or fence --
+because a predicate that parses complete syntax sees nothing at all in
+those, and would otherwise put a second space inside a URL.
+
+** What a keystroke costs
+
+Measured in a one-megabyte buffer, per space typed, hook included:
+
+| space typed after | text-mode | org-mode | markdown |
+|-------------------+-----------+----------+----------|
+| a word            | 0.4 µs    | 0.4 µs   | 0.4 µs   |
+| a sentence end    | 3 µs      | 160 µs   | 5 µs     |
+
+Any key but the space bar costs one comparison.  A space between words
+-- nearly all of them -- costs a look at the two characters before it,
+which is what decides that it is not after a sentence end; that look is
+the same 0.4 µs on a 70-character line and on the 20,000-character
+paragraph-lines of =visual-line-mode=.  Only a space that /is/ after a
+sentence end goes on to ask what the text around it is.
+
+That question has two parts.  Blocks are settled by an incremental scan:
+the delimiters above point are counted once and the answer carried
+forward, so typing at the end of a file, which is how prose mostly
+grows, costs only the lines typed since the last look.  An edit higher
+up throws the scan away and the next keystroke there rebuilds it from
+the top -- a millisecond or two per megabyte, once.  The scan sees a
+block whose end has not been typed yet, which the parsers cannot, and
+it answers for closed blocks too, before the parsers are asked.
+
+Then Org is asked =org-element-context= about what surrounds point,
+which is where the 160 µs go: it is Org's own account of links, inline
+code, tables, timestamps and the rest, and it comes with a sync of the
+element cache after the edit just made.  It is the correct oracle and
+is kept for that reason; a fifth of a millisecond, once per sentence,
+is not a latency anyone can feel.  It does grow with the paragraph,
+which Org reads from its start each time -- a few milliseconds at the
+end of a paragraph hundreds of lines long with no blank line in it.
+
+=garamond-adjust-spacing= does not pay that per break.  It reads the
+whole stretch first, deciding every gap while the text is still as it
+was, and replaces afterwards from the last gap backwards; in Org it
+parses the buffer once instead of asking at each break.  Twenty
+thousand lines of Org take about two seconds, and a single
+thousand-line paragraph, which used to take the square of its length,
+a few hundredths.
+
+* The two globals
+
+Neither says anything about how any document is spaced, which is why they
+are allowed to be globals.
+
+| =garamond-abbreviations=          | Words whose trailing period is not a full stop |
+| =garamond-extra-abbreviations=    | Yours, added to the defaults                   |
+| =garamond-removed-abbreviations=  | Defaults that should not count                 |
+| =garamond-unsuitable-modes=       | Where the typing mode refuses to run           |
+| =garamond-double-space-on-typing= | Master switch for the typing half              |
+| =garamond-lighter=                | Whether the mode shows its own indicator       |
+
+=M-x garamond-doctor= reports all of them, and what they are doing to the
+current buffer.
+
+#+begin_src emacs-lisp
+  (setq garamond-double-space-on-typing nil)
+#+end_src
+
+With that, a declared file still sets =sentence-end-double-space= -- so
+filling and sentence motion behave -- while no second space ever appears
+under your hands.  It is read afresh at each keystroke, so a keybinding can
+flip it mid-sentence and the minor mode need not be cycled.
+
+=garamond-persist= is a fourth, and governs only whether the commands
+/offer/ to write a declaration.
+
+* When nothing shows
+
+#+begin_src
+  M-x garamond-doctor
+#+end_src
+
+It reports what garamond is doing in the current buffer and why: whether
+the buffer has been declared, whether anything read that declaration,
+whether the indicator is being shown, hidden, or simply has nothing to
+say -- and ends with the likeliest reason for what you are seeing.
+
+The three usual answers:
+
+- *Nothing has declared this buffer.*  Which is the design, not a fault: a
+  file that says nothing gets nothing.  =M-x garamond-set-spacing= says
+  what it uses, writes that into the file, and the indicator appears at
+  once.
+
+- *The file declares its spacing, but the mode is off.*  Either
+  =garamond-follow-declarations-mode= is not on, or the file was opened
+  before it was -- reverting the buffer settles the second.
+
+- *The mode is on but the mode line does not show it.*  A mode line that
+  hides minor mode lighters, as doom-modeline does unless
+  =doom-modeline-minor-modes= is =t=.  Either show minor modes, or place
+  the indicator yourself as above.  The doctor tells these apart by
+  rendering the mode line and looking for the indicator in it.
+
+* Development
+
+#+begin_src sh
+  make          # compile, with warnings as errors, then run the tests
+  make test
+  make lint     # checkdoc
+#+end_src
+
+* License
+
+GPL-3.0-or-later.  See [[file:LICENSE][LICENSE]].
