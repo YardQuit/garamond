@@ -1,0 +1,51 @@
+#+title: Garamond -- Changes
+
+All notable changes to garamond.  The format follows Keep a Changelog;
+the version in =garamond.el='s header is the one that counts.
+
+* Unreleased
+
+* 0.2.0 -- 2026-09-20
+
+The first public release.  Version 0.1.0 was the design this replaced --
+mode lists deciding where the package ran -- and was never published.
+
+** Added
+
+- =garamond-set-spacing=: declare one or two spaces for the buffer,
+  record it in the file as =sentence-end-double-space=, touch no text.
+- =garamond-adjust-spacing=: the same, and rewrite the region or buffer
+  to match, leaving code blocks, tables, links, inline code, maths and
+  ordered-list numbering alone.  Two passes -- classify, then replace
+  from the end -- and one Org parse per pass.
+- =garamond-mode=: type one space after a sentence end and get two, with
+  =garamond-abbreviations= (=e.g.=, =Dr.=, =etc.= ...) left single.
+  Refuses read-only buffers, the minibuffer and =garamond-unsuitable-modes=.
+- =garamond-follow-declarations-mode=: the one global -- files that
+  declare their spacing, in their own local variables or a
+  =.dir-locals.el=, switch the typing on when opened, and when toggled
+  writable with =read-only-mode=.
+- Mode-line indicator =2S= / =1S=, bracketed while the typing is muted;
+  =garamond-lighter=, =garamond-mode-line-string= and
+  =garamond-mode-line-format= for placing it yourself.
+- =garamond-extra-abbreviations= and =garamond-removed-abbreviations=,
+  so neither adding nor dropping abbreviations means retyping the list;
+  a lower-case entry also counts capitalised at the start of a sentence.
+- =garamond-double-space-on-typing=: the master switch for the typing.
+- =garamond-doctor=: what garamond is doing in the buffer and why,
+  including whether the mode line actually shows the indicator.
+- =garamond-version=.
+- An incremental block scan, so an unclosed =#+begin_src= or code fence
+  is seen while it is being typed, and seen cheaply: a keystroke costs
+  under a microsecond between words whatever the size of the file or
+  the length of the line.
+- A test suite of 110 ERT tests, run by =make=; CI on Emacs 29.1, 29.4,
+  30.1 and a snapshot.
+
+** Known limits
+
+- Initials (=J. R. R.=) read as sentence ends.
+- An abbreviation that truly ends a sentence gets one space; type the
+  second yourself and it stays.
+- In Org, a space at the end of a very long paragraph with no blank
+  line costs milliseconds, Org reading the paragraph from its start.

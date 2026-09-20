@@ -14,8 +14,7 @@ test: compile
 	@$(BATCH) -l test/garamond-test.el -f ert-run-tests-batch-and-exit
 
 lint:
-	@$(BATCH) --eval '(progn (require (quote checkdoc)) \
-		(checkdoc-file "garamond.el"))'
+	@$(BATCH) --eval '(progn (require (quote checkdoc)) (checkdoc-file "garamond.el") (let ((w (get-buffer "*Warnings*"))) (when (and w (> (buffer-size w) 0)) (kill-emacs 1))))'
 
 clean:
 	@rm -f garamond.elc test/*.elc

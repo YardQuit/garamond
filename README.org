@@ -2,6 +2,8 @@
 #+subtitle: Sentence spacing the document carries itself
 #+options: toc:nil
 
+[[https://github.com/YardQuit/garamond/actions/workflows/ci.yml][https://github.com/YardQuit/garamond/actions/workflows/ci.yml/badge.svg]]
+
 Two spaces after a full stop are a typist's convention, and Emacs believes
 in them: =sentence-end-double-space= is what tells =fill-paragraph= and
 =forward-sentence= where one sentence stops and the next begins.  The
@@ -438,8 +440,12 @@ The three usual answers:
 #+begin_src sh
   make          # compile, with warnings as errors, then run the tests
   make test
-  make lint     # checkdoc
+  make lint     # checkdoc; fails on any finding
 #+end_src
+
+CI runs =make= and =make lint= on Emacs 29.1 -- the floor declared in the
+header -- 29.4, 30.1 and a snapshot, the last allowed to fail.  Changes
+are recorded in [[file:CHANGELOG.org][CHANGELOG.org]].
 
 * License
 
