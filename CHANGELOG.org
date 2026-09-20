@@ -5,47 +5,79 @@ the version in =garamond.el='s header is the one that counts.
 
 * Unreleased
 
-* 0.2.0 -- 2026-09-20
+* 1.0.0 -- 2026-09-20
 
-The first public release.  Version 0.1.0 was the design this replaced --
-mode lists deciding where the package ran -- and was never published.
+1.0.0 -- the first release: sentence spacing lives in the document, not
+in your configuration.
 
-** Added
+Garamond grew out of a literate-config block that doubled the space after
+a full stop as it was typed and rewrote a buffer to match, governed by
+lists of major modes.  The lists are gone.  A file declares its own
+spacing as a file-local =sentence-end-double-space=, or a directory does
+in a =.dir-locals.el=, and garamond follows what is declared: filling and
+sentence motion agree with the text, one space typed after a sentence end
+becomes two -- never inside code, tables, links or maths -- and a file
+that declares nothing is left alone.  One file, Emacs 29.1 or later, no
+dependencies.  The 0.x numbers were carried during development and never
+tagged.
 
-- =garamond-set-spacing=: declare one or two spaces for the buffer,
-  record it in the file as =sentence-end-double-space=, touch no text.
-- =garamond-adjust-spacing=: the same, and rewrite the region or buffer
-  to match, leaving code blocks, tables, links, inline code, maths and
-  ordered-list numbering alone.  Two passes -- classify, then replace
-  from the end -- and one Org parse per pass.
-- =garamond-mode=: type one space after a sentence end and get two, with
-  =garamond-abbreviations= (=e.g.=, =Dr.=, =etc.= ...) left single.
-  Refuses read-only buffers, the minibuffer and =garamond-unsuitable-modes=.
-- =garamond-follow-declarations-mode=: the one global -- files that
-  declare their spacing, in their own local variables or a
-  =.dir-locals.el=, switch the typing on when opened, and when toggled
-  writable with =read-only-mode=.
-- Mode-line indicator =2S= / =1S=, bracketed while the typing is muted;
-  =garamond-lighter=, =garamond-mode-line-string= and
-  =garamond-mode-line-format= for placing it yourself.
-- =garamond-extra-abbreviations= and =garamond-removed-abbreviations=,
-  so neither adding nor dropping abbreviations means retyping the list;
-  a lower-case entry also counts capitalised at the start of a sentence.
-- =garamond-double-space-on-typing=: the master switch for the typing.
-- =garamond-doctor=: what garamond is doing in the buffer and why,
-  including whether the mode line actually shows the indicator.
-- =garamond-version=.
-- An incremental block scan, so an unclosed =#+begin_src= or code fence
-  is seen while it is being typed, and seen cheaply: a keystroke costs
-  under a microsecond between words whatever the size of the file or
-  the length of the line.
-- A test suite of 110 ERT tests, run by =make=; CI on Emacs 29.1, 29.4,
-  30.1 and a snapshot.
+** What you get
+
+- =garamond-set-spacing=: say that this buffer uses one or two spaces and
+  record it in the file.  Not a character is touched.
+- =garamond-adjust-spacing=: the same, and rewrite the region or buffer to
+  match -- uniformly, leaving code blocks, tables, links, inline code,
+  maths and ordered-list numbering alone.
+- =garamond-mode=: one space typed after a sentence end becomes two; a
+  longer run is trimmed back to two; nothing happens after =e.g.=, =Dr.=,
+  =etc.= and their kin.  Add yours with =garamond-extra-abbreviations=,
+  drop defaults with =garamond-removed-abbreviations=; a lower-case entry
+  also counts capitalised at the start of a sentence.  The mode refuses
+  read-only buffers, the minibuffer and =garamond-unsuitable-modes=.
+- =garamond-follow-declarations-mode=: the one line of setup.  A file
+  that declares itself gets the typing when opened, and when a read-only
+  file is made writable.
+- The mode line says =2S= or =1S=, bracketed while
+  =garamond-double-space-on-typing= mutes the typing; nothing at all
+  means nothing has declared the buffer.  =garamond-lighter= and
+  =garamond-mode-line-format= let you place the indicator yourself.
+- =garamond-doctor=: what garamond is doing in a buffer and why, down to
+  whether the mode line actually shows the indicator.  =garamond-version=.
+
+** Under the hood
+
+- A space between words costs a third of a microsecond whatever the size
+  of the file or the length of the line; a space after a sentence end
+  three, or a fifth of a millisecond in Org, which is Org's own parser
+  answering.
+- An incremental scan of block delimiters sees a =#+begin_src= or a code
+  fence whose end has not been typed yet, and is carried forward rather
+  than redone at each keystroke.
+- =garamond-adjust-spacing= reads before it writes and parses Org once,
+  so twenty thousand lines take about two seconds.
+- 110 ERT tests, run by =make=; CI on Emacs 29.1, 29.4, 30.1 and a
+  snapshot; =make lint= fails on any checkdoc finding.
 
 ** Known limits
 
-- Initials (=J. R. R.=) read as sentence ends.
+- Initials (=J. R. R.=) read as sentence ends; add yours to
+  =garamond-extra-abbreviations= if it bothers you.
 - An abbreviation that truly ends a sentence gets one space; type the
   second yourself and it stays.
-- In Org, a space at the end of a very long paragraph with no blank
-  line costs milliseconds, Org reading the paragraph from its start.
+- In Org, a space at the end of a very long paragraph with no blank line
+  in it costs milliseconds, Org reading the paragraph from its start.
+
+** Upgrading
+
+From the unreleased 0.2.0: nothing to do -- the code is the same, the
+number is not.
+
+From 0.1.0 or the original configuration block: the mode lists are gone.
+Remove any =garamond-install=, =garamond-global-mode=,
+=garamond-double-space-modes= or =garamond-excluded-modes= from your
+configuration -- they no longer exist -- and put
+=(garamond-follow-declarations-mode 1)= in their place.  Then open each
+document you want double spaced and run =C-u 2 M-x garamond-set-spacing=
+once; the declaration is written into the file and nothing needs saying
+again.  A =.dir-locals.el= with =((org-mode . ((sentence-end-double-space
+. t))))= declares a whole directory at once.
