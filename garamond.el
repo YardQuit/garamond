@@ -1051,6 +1051,16 @@ displays it cannot be told from here -- look at the mode line itself, or ask \
 again from a real window.")))
 
 ;;;###autoload
+(defun garamond-version ()
+  "Return garamond\='s version, from the header of the file that was loaded.
+Interactively, say it as well."
+  (interactive)
+  (let ((version (or (garamond--version) "unknown")))
+    (when (called-interactively-p 'interactive)
+      (message "garamond %s" version))
+    version))
+
+;;;###autoload
 (defun garamond-doctor ()
   "Report what garamond is doing in this buffer, and why.
 Answers the question the mode line cannot: whether this buffer has been

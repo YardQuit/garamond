@@ -32,30 +32,109 @@ So garamond reads =file-local-variables-alist= instead, which holds only
 what the file itself said -- or what a =.dir-locals.el= above it said on its
 behalf.  A file that declares nothing is left entirely alone.
 
-* Setup
+* Installing
 
-One line, after putting it on your =load-path=:
+Garamond is one file with no dependencies beyond Emacs 29.1.
 
-#+begin_src emacs-lisp
-  (require 'garamond)
-  (garamond-follow-declarations-mode 1)
+** From a clone
+
+#+begin_src sh
+
+  git clone https://github.com/yardquit/garamond ~/src/garamond
+
 #+end_src
 
-Or with =use-package=:
-
 #+begin_src emacs-lisp
+
+  ;; Where the clone lives.  One place, read by both `:load-path' and
+  ;; the `:init' block under it.
+  (defvar my-garamond-dir (expand-file-name "~/src/garamond"))
+
   (use-package garamond
-    :load-path "~/src/garamond"
-    :config (garamond-follow-declarations-mode 1))
+    :load-path my-garamond-dir
+
+    :init
+    ;; A package archive byte-compiles what it installs.  A clone does
+    ;; not, and nothing in garamond compiles itself, so compile it here
+    ;; -- and again whenever garamond.el turns out to be newer than the
+    ;; .elc beside it, which is what a `git pull' leaves behind.
+    (let* ((src (expand-file-name "garamond.el"  my-garamond-dir))
+           (elc (expand-file-name "garamond.elc" my-garamond-dir))
+           (recompiled nil))
+      (if (not (file-exists-p src))
+          (message "garamond: no garamond.el under %s -- check my-garamond-dir"
+                   my-garamond-dir)
+        (when (file-newer-than-file-p src elc)
+          (require 'bytecomp)
+          (let ((start (current-time)))
+            (setq recompiled
+                  (and (ignore-errors (byte-compile-file src))
+                       (float-time (time-since start))))))
+        (let ((compiled (and (file-exists-p elc)
+                             (not (file-newer-than-file-p src elc)))))
+          (load (if compiled elc src) nil t)
+          (message "garamond %s loaded %s%s"
+                   (garamond-version)
+                   (if compiled "compiled" "from source (interpreted)")
+                   (if recompiled
+                       (format ", recompiled in %.2fs" recompiled)
+                     "")))))
+
+    :config
+    ;; The one line of setup: read the spacing that documents declare.
+    (garamond-follow-declarations-mode 1)
+
+    ;; The knobs, should you want any; none is needed.
+    ;; (setq garamond-extra-abbreviations   '("Ph.D." "et al." "Inc.")
+    ;;       garamond-removed-abbreviations '("St." "No.")
+    ;;       garamond-double-space-on-typing t   ; nil: declare, never type
+    ;;       garamond-lighter                t)  ; nil: place it yourself
+    )
+
 #+end_src
 
-That mode is the only global thing in the package, and it is not a spacing
--- it is a willingness to read the ones documents state.  It runs from
+*** What the block is doing
+
+=:load-path= on its own would be enough to load garamond: =use-package=
+ends with =(require 'garamond)=, and =require= would find =garamond.el=
+there.  It would also run /interpreted/, and garamond works from
+=post-self-insert-hook=, so that cost is paid on every keystroke.
+
+So =:init= picks the file instead of leaving the choice to =require=.
+That is what the =load= call is for.  Emacs prefers =garamond.elc= to
+=garamond.el= whenever both are on the path, which makes a stale =.elc=
+the copy =require= takes -- and a later =(load "garamond.el")= cannot
+undo it.  Choosing explicitly sidesteps that, and by the time
+=use-package= runs its own =require=, =garamond= is already in
+=features= and the =require= does nothing.
+
+Both halves read =my-garamond-dir=, so there is one path to edit and no
+way for the two to drift apart.  Pointing =:load-path= at one directory
+and the compile step at another is the mistake this arrangement exists
+to prevent: garamond would still load, from the =:load-path= copy and
+interpreted, behind a warning about the other.
+
+The echo area says which copy you got -- =loaded compiled=, or =loaded
+from source (interpreted)= -- with the version, and the time the
+recompile took when there was one.  =M-x garamond-version= says the
+version again later.
+
+If the compile fails, garamond loads from source and says so.  That is
+deliberate: a file that will not compile must not stop Emacs from
+starting.  It also means the reason is not shown, so run
+=M-x byte-compile-file= on =garamond.el= when you want to see it.
+
+** Turning it on
+
+=(garamond-follow-declarations-mode 1)= in =:config= above is the whole
+of it, and it is the only global thing in the package -- not a spacing,
+but a willingness to read the ones documents state.  It runs from
 =hack-local-variables-hook=, so it sees a file just after the file's own
-variables have been applied.  A file that declares nothing is left alone, and
-so is a buffer nobody types in -- one that visits no file and cannot be
-edited, such as Dired under a =.dir-locals.el= entry for all modes.  Nothing runs itself on load; a library that
-switches itself on is a library you cannot load in order to read it.
+variables have been applied, and from =read-only-mode-hook=, so a
+declared file caught read-only is caught up with when made writable.  A
+file that declares nothing is left alone, and so is a buffer nobody
+types in.  Nothing runs itself on load; a library that switches itself
+on is a library you cannot load in order to read it.
 
 * Three commands
 
