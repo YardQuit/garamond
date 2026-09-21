@@ -4,7 +4,7 @@
 
 ;; Author: Michael A Jones <yardquit@pm.me>
 ;; Maintainer: Michael A Jones <yardquit@pm.me>
-;; Version: 1.0.0
+;; Version: 1.0.1
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: convenience, text, wp
 ;; URL: https://github.com/yardquit/garamond

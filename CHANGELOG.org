@@ -5,6 +5,47 @@ the version in =garamond.el='s header is the one that counts.
 
 * Unreleased
 
+* 1.0.1 -- 2026-09-21
+
+1.0.1 -- the abbreviations garamond knows go from twenty-one to a hundred
+and eighteen.
+
+The typing held back after =e.g.=, =Dr.= and nineteen others, and put a
+second space in the middle of everything else a writer shortens: =Capt.
+Ahab=, =due in Sept. next week=, =the U.S. Navy=.  The defaults now cover
+what prose actually carries.
+
+** Changed
+
+- A space typed after one of the new abbreviations stays single.  The
+  additions are the Latin and editorial shorthand (=viz.=, =ibid.=,
+  =q.v.=, =ca.=, =esp.=, =incl.=, =et seq.= and their kin), the
+  bibliographic marks (=ed.=, =edn.=, =trans.=, =Figs.=, =Chap.=, =Sec.=,
+  =Eq.=, =Ref.=, =App.= and the plurals), forms of address and of rank
+  (=Mx.=, =Messrs.=, =Rev.=, =Hon.=, =Capt.=, =Sgt.=, =Supt.=),
+  organisations and places (=Co.=, =Dept.=, =Univ.=, =Mt.=, =Ave.=,
+  =U.S.=, =U.K.=, =D.C.=), the months, the days, the clock (=a.m.=,
+  =p.m.=), =N.B.= and =P.S.=.
+- A sentence that /ends/ in one of them now takes its second space from
+  you, exactly as one ending in =etc.= always has: =...never been to the
+  U.S.=, =...starts at 9 a.m.=  Drop the ones that get in your way with
+  =garamond-removed-abbreviations=, which needs no retyping of the list.
+- Degrees, company suffixes and units stay out of the defaults on
+  purpose: =Ph.D.=, =Inc.= and =lb.= follow the thing they qualify, and
+  so end a sentence about as often as they sit inside one.  Yours go in
+  =garamond-extra-abbreviations=, as they did.
+- =garamond-adjust-spacing= is unchanged.  The wholesale rewrite has
+  never consulted the abbreviation list, so that its result is uniform.
+
+** Under the hood
+
+- The keystroke path keeps its shape and its reach: the longest default
+  is still seven characters, so the look backwards still stops eight
+  characters back.  A space between words costs what it did; a space
+  after a sentence end costs 0.4 microseconds more.
+- 114 ERT tests, four of them new; one of the four types every default
+  in turn, which is what pins an entry to a shape the hook can reach.
+
 * 1.0.0 -- 2026-09-20
 
 1.0.0 -- the first release: sentence spacing lives in the document, not
