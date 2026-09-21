@@ -603,6 +603,45 @@ afterwards, and BODY runs with the file's own local variables applied."
         (garamond-extra-abbreviations '("d.")))
     (should (equal '("a." "c." "d.") (garamond--abbreviations-in-force)))))
 
+(ert-deftest garamond-test-every-default-abbreviation-is-spared ()
+  "Each default, typed between two words, keeps its single space.
+A guard on the list itself: an entry that does not end in a period, or
+whose period falls anywhere but its last word, is never reached by
+`garamond--abbreviation-p' and would quietly do nothing."
+  (dolist (abbrev garamond-abbreviations)
+    (let ((typed (concat "See " abbrev " next ")))
+      (should (equal (garamond-test--type typed) typed)))))
+
+(ert-deftest garamond-test-default-abbreviations-are-well-formed ()
+  "Every default is a distinct non-empty string ending in a period."
+  (should-not (seq-remove (lambda (abbrev)
+                            (and (stringp abbrev)
+                                 (not (string= abbrev ""))
+                                 (string-suffix-p "." abbrev)))
+                          garamond-abbreviations))
+  (should (= (length garamond-abbreviations)
+             (length (delete-dups (copy-sequence garamond-abbreviations))))))
+
+(ert-deftest garamond-test-the-wider-defaults-are-abbreviations ()
+  "A sample of each group the defaults cover holds its single space."
+  (dolist (line '("Met Capt. Ahab "               ; rank
+                  "The Rt Hon. Member "           ; address
+                  "Filed by Acme Corp. after "    ; organisation
+                  "Due in Sept. next "            ; month
+                  "On Tues. we "                  ; day
+                  "At 9 a.m. we "                 ; the clock
+                  "See Sec. 4 of "                ; bibliographic
+                  "The U.S. Navy "                ; initialism
+                  "Read viz. that "               ; Latin
+                  "As et seq. shows "))           ; two words
+    (should (equal (garamond-test--type line) line))))
+
+(ert-deftest garamond-test-capitalised-defaults-keep-their-case ()
+  "\"Sat.\" abbreviates a day; \"he sat.\" ends a sentence."
+  (should (equal (garamond-test--type "On Sat. Then ") "On Sat. Then "))
+  (should (equal (garamond-test--type "He sat. Then ") "He sat.  Then "))
+  (should (equal (garamond-test--type "They wed. Then ") "They wed.  Then ")))
+
 
 ;;; The pre-release pass
 

@@ -249,11 +249,18 @@ there it is the empty string.  Leave =garamond-lighter= at =t= and add it
 by hand as well and you will see it twice.
 
 It requires a letter before the punctuation, which rules out list numbering
-and decimals, and it consults =garamond-abbreviations= -- =e.g.=, =Dr.=,
-=etc.= and their kin -- whose trailing period does not end a sentence, even
-inside a closing bracket.  Add your own with =garamond-extra-abbreviations=
-and drop defaults with =garamond-removed-abbreviations=, neither of which
-means retyping the list:
+and decimals, and it consults =garamond-abbreviations=, whose trailing period
+does not end a sentence, even inside a closing bracket.  There are a hundred
+and more of those by default: the Latin and editorial shorthand (=e.g.=,
+=i.e.=, =cf.=, =viz.=, =etc.=, =ibid.=), the bibliographic marks (=p.=,
+=pp.=, =ed.=, =Fig.=, =Vol.=, =Sec.=), forms of address and of rank (=Dr.=,
+=Prof.=, =Messrs.=, =Capt.=, =Sgt.=), organisations and places (=Co.=,
+=Dept.=, =Mt.=, =U.S.=), the months and the days (=Sept.=, =Tues.=), and the
+clock (=a.m.=, =p.m.=).  Degrees, company suffixes and units are left out on
+purpose: =Ph.D.=, =Inc.= and =lb.= follow the thing they qualify, and so end
+a sentence about as often as they sit inside one.  Add your own with
+=garamond-extra-abbreviations= and drop defaults with
+=garamond-removed-abbreviations=, neither of which means retyping the list:
 
 #+begin_src emacs-lisp
   (setq garamond-extra-abbreviations '("Ph.D." "et al." "Inc.")
@@ -274,7 +281,10 @@ and =dr.= do end sentences.
   bothers you.
 - /An abbreviation that ends a sentence./  After =etc.= the typing holds back,
   as it must -- so type the second space yourself.  Two spaces typed by hand
-  are left as two.
+  are left as two.  Some defaults do this more often than others: =U.S.=,
+  =a.m.= and =Ave.= end sentences about as readily as they sit inside one,
+  and =garamond-removed-abbreviations= is how you drop the ones that get in
+  your way.
 - /A very long Org paragraph./  Org reads a paragraph from its start to say
   what surrounds point, so a space at the end of a paragraph hundreds of
   lines long with no blank line in it costs milliseconds.  Blank lines

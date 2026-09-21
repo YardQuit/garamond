@@ -110,21 +110,59 @@
 ;;; ---------------------------------------------------------------------------
 
 (defcustom garamond-abbreviations
-  '("e.g." "i.e." "cf." "vs." "etc." "al." "approx." "Mr." "Mrs." "Ms."
-    "Dr." "Prof." "Sr." "Jr." "St." "No." "Fig." "Ch." "Vol." "p." "pp.")
+  '(;; Latin and editorial.
+    "e.g." "i.e." "cf." "viz." "vs." "etc." "al." "et seq." "ibid." "q.v."
+    "ca." "approx." "esp." "incl." "excl." "resp." "misc." "a.k.a." "ff."
+    ;; Bibliographic.
+    "p." "pp." "ed." "eds." "edn." "trans." "repr." "suppl."
+    "No." "Nos." "Fig." "Figs." "Ch." "Chap." "Vol." "Vols." "Sec." "Secs."
+    "Eq." "Eqs." "Ref." "Refs." "App."
+    ;; Forms of address.
+    "Mr." "Mrs." "Ms." "Mx." "Messrs." "Dr." "Prof." "Rev." "Fr." "Msgr."
+    "Sr." "Jr." "St." "Hon." "Pres." "Gov." "Sen." "Rep." "Amb."
+    ;; Rank.
+    "Adm." "Capt." "Cmdr." "Col." "Cpl." "Det." "Gen." "Insp." "Lt."
+    "Maj." "Pvt." "Sgt." "Supt."
+    ;; Organisations and places.
+    "Co." "Corp." "Bros." "Dept." "Univ." "Inst." "Mt." "Ft." "Ave."
+    "Blvd." "Rd." "U.S." "U.K." "U.N." "D.C."
+    ;; Months.
+    "Jan." "Feb." "Mar." "Apr." "Jun." "Jul." "Aug." "Sep." "Sept."
+    "Oct." "Nov." "Dec."
+    ;; Days.
+    "Mon." "Tue." "Tues." "Wed." "Weds." "Thu." "Thur." "Thurs." "Fri."
+    "Sat." "Sun."
+    ;; The clock, and the two notes.
+    "a.m." "p.m." "A.M." "P.M." "N.B." "P.S.")
   "Abbreviations whose trailing period does not end a sentence.
 Consulted by `garamond-mode' while typing.  The wholesale rewrite done by
 `garamond-adjust-spacing' ignores this, so that its result is uniform.
 
-These are the defaults.  To add your own without retyping them, or to
-drop some, use `garamond-extra-abbreviations' and
-`garamond-removed-abbreviations'; all three are read afresh, so a `setq'
-in a configuration file takes effect at the next keystroke.
+These are the defaults: the Latin and editorial shorthand, the
+bibliographic marks, forms of address and of rank, the months and the
+days.  What is absent is absent on purpose: academic degrees such as
+\"Ph.D.\", company suffixes such as \"Inc.\", and units such as \"lb.\"
+follow the thing they qualify, and so end a sentence about as often as
+they sit inside one; listed here, they would cost the second space every
+time they did.  Write the ones you use into
+`garamond-extra-abbreviations'.
+
+To add your own without retyping the defaults, or to drop some, use
+`garamond-extra-abbreviations' and `garamond-removed-abbreviations'; all
+three are read afresh, so a `setq' in a configuration file takes effect
+at the next keystroke.
 
 Case matters, with one allowance: an entry that begins with a lower-case
 letter also counts capitalised, as it is at the start of a sentence --
 \"e.g.\" covers \"E.g.\".  An entry given capitalised, \"No.\" or \"Dr.\",
-is matched only so, since \"no.\" and \"dr.\" do end sentences."
+is matched only so, since \"no.\" and \"dr.\" do end sentences.  That is
+why the days and months are here in their written form alone: \"Sat.\"
+is an abbreviation where \"he sat.\" is a sentence.
+
+An entry of several words is matched whole, but only its last word may
+carry a period.  The space after \"op.\" in \"op. cit.\" is a sentence
+end as the hook meets it, one word too early for the entry to be
+reached, so \"et seq.\" can be here and \"op. cit.\" cannot."
   :type '(repeat string)
   :group 'garamond)
 
